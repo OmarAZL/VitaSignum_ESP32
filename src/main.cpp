@@ -21,8 +21,6 @@
 #include "env.h" // Variables sensibles.
 
 Screen screen(SCREEN_ADDRESS, SCREEN_WIDTH, SCREEN_HEIGHT);
-DS18B20 ds18b20(DS18B20_PIN, DS18B20_RESOLUTION);
-GY906 gy906(GY906_ADDRESS);
 
 JsonDocument doc;
 
@@ -59,7 +57,7 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
 			//webSocket.sendTXT("Connected");
 			break;
 		case WStype_TEXT:
-			USE_SERIAL.printf("[WSc] get text: %s\n", payload);
+			USE_SERIAL.printf("[WSc] %s\n", payload);
 
 			// send message to server
 			// webSocket.sendTXT("message here");
@@ -87,8 +85,6 @@ void setup() {
 	
 	Wire.begin(PIN_SDA, PIN_SCL);
 	screen.begin();
-	gy906.begin();
-	ds18b20.begin();
 
 	//Serial.setDebugOutput(true);
 	USE_SERIAL.setDebugOutput(true);
@@ -98,11 +94,11 @@ void setup() {
 	USE_SERIAL.println();
 
 	bool screenCheck = screen.isConnected();
-    while (!screenCheck) {
+    /*while (!screenCheck) {
         Serial.println("Esperando pantalla OLED...");
         screenCheck = screen.isConnected();
         delay(2000);
-    }
+    }*/
 
 	for(uint8_t t = 4; t > 0; t--) {
 		USE_SERIAL.printf("[SETUP] BOOT WAIT %d...\n", t);
@@ -157,15 +153,8 @@ void sendValues(unsigned long timestamp, float &temp1, float &temp2) {
 void loop() {
 	webSocket.loop();
 	unsigned long report = millis();
-	if(report - last_report >= 500) {
+	if(report - last_report >= 1500) {
 	last_report = report;
-		float temp1 = ds18b20.getTemperature();
-		float temp2 = gy906.readObjectTempC();
-		if(webSocket.isConnected()) {
-			sendValues(report, temp1, temp2);
-		}
-		bool electrodes = false;
-		int ecg = 0;
-		screen.showAllSensors(temp1, temp2, electrodes, ecg);
+		screen.showMessage("Hola");
 	}
 }
