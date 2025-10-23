@@ -51,11 +51,20 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
 			USE_SERIAL.printf("[WSc] Disconnected!\n");
 			break;
 		case WStype_CONNECTED:
+		{
 			USE_SERIAL.printf("[WSc] Connected to url: %s\n", payload);
 
-			// send message to server when Connected
-			//webSocket.sendTXT("Connected");
+			doc.clear();
+			doc["device"] = WiFi.macAddress();
+			char buffer[64];
+			size_t n = serializeJson(doc, buffer);
+			bool status = webSocket.sendTXT(buffer, n);
+			if (status) {
+				webSocket.sendTXT(buffer);
+			}
+			
 			break;
+		}
 		case WStype_TEXT:
 			USE_SERIAL.printf("[WSc] %s\n", payload);
 
@@ -94,11 +103,11 @@ void setup() {
 	USE_SERIAL.println();
 
 	bool screenCheck = screen.isConnected();
-    /*while (!screenCheck) {
+    while (!screenCheck) {
         Serial.println("Esperando pantalla OLED...");
         screenCheck = screen.isConnected();
         delay(2000);
-    }*/
+    }
 
 	for(uint8_t t = 4; t > 0; t--) {
 		USE_SERIAL.printf("[SETUP] BOOT WAIT %d...\n", t);
@@ -136,12 +145,14 @@ void setup() {
 unsigned long last_report = 0;
 int cont = 0;
 
-void sendValues(unsigned long timestamp, float &temp1, float &temp2) {
+void sendValues(unsigned long timestamp, float &temp1, float &temp2_obj, float &temp2_amb) {
+	String mac = WiFi.macAddress();
 	doc.clear();
-	doc["temp1"] = temp1;
-	doc["temp2_obj"] = temp2;
-	//doc["temp2_amb"] = 24.8;
-	doc["timestamp_ms"] = timestamp;
+	doc["device"] = mac;
+	doc[mac]["temp1"] = temp1;
+	doc[mac]["temp2_obj"] = temp2_obj;
+	doc[mac]["temp2_amb"] = temp2_amb;
+	doc[mac]["timestamp_ms"] = timestamp;
 	char buffer[1024];
 	size_t n = serializeJson(doc, buffer);
 	bool status = webSocket.sendTXT(buffer, n);
@@ -150,11 +161,26 @@ void sendValues(unsigned long timestamp, float &temp1, float &temp2) {
 	}
 }
 
+void showValues(unsigned long timestamp, float &temp1, float &temp2) {
+	screen.getDisplay().clearDisplay();
+	screen.getDisplay().setCursor(0, 0);
+	screen.getDisplay().println("MAC: " + WiFi.macAddress());
+	screen.getDisplay().println("Temperatura 1: " + String(temp1));
+	screen.getDisplay().println("Temperatura 2: " + String(temp2));
+	screen.getDisplay().println("Timestamp MS: " + String(timestamp));
+	screen.getDisplay().display();
+}
+
+float temp1 = 0;
+float temp2_obj = 0;
+float temp2_amb = 0;
+
 void loop() {
 	webSocket.loop();
 	unsigned long report = millis();
 	if(report - last_report >= 1500) {
 	last_report = report;
-		screen.showMessage("Hola");
+		sendValues(report, temp1, temp2_obj, temp2_amb);
+		showValues(report, temp1, temp2_obj);
 	}
 }
